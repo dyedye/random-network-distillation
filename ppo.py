@@ -5,6 +5,9 @@ import math
 from torch import nn
 import numpy as np
 
+# Below implementation of PPO is from RL-Summer School
+# I borrowed most of the codes from the lecture-2 handout
+
 
 class Algorithm(ABC):
 
@@ -13,7 +16,7 @@ class Algorithm(ABC):
                              device=self.device).unsqueeze_(0)
         with torch.no_grad():
             action, log_pi = self.actor.sample(state)
-        return action.cpu().numpy()[0], log_pi.item()
+        return action.cpu().squeeze(dim=0).numpy(), log_pi.squeeze(dim=0).numpy()
 
     def exploit(self, state):
         """ 決定論的な行動を返す． """
@@ -122,7 +125,7 @@ class PPOCritic(nn.Module):
         self.net_external = nn.Linear(64, 1)
 
     def forward(self, states):
-        """Retunrn (external_value, intrinsic_value)"""
+        """Retunrn (intrinsic_value, external_value)"""
         mid_output = self.shared_layer(states)
         return self.net_intrinsic(mid_output), self.net_external(mid_output)
 
@@ -154,7 +157,6 @@ def calculate_advantage(values, rewards, dones, gamma=0.995, lambd=0.997):
 
 
 class RolloutBuffer:
-
     def __init__(self, buffer_size, state_shape, action_shape, device=torch.device('cuda')):
 
         # GPU上に保存するデータ．
@@ -191,7 +193,7 @@ class RolloutBuffer:
         return self.states, self.actions, self.rewards, self.dones, self.log_pis
 
 
-class PPO(Algorithm):
+class PPO(Algorithm, nn.Module):
 
     def __init__(self, state_shape, action_shape, device=torch.device('cuda'), seed=0,
                  batch_size=64, gamma=0.995, lr_actor=3e-4, lr_critic=3e-4,
@@ -319,5 +321,5 @@ class PPO(Algorithm):
         self.optim_actor.zero_grad()
         loss_actor.backward(retain_graph=False)
         # 学習を安定させるヒューリスティックとして，勾配のノルムをクリッピングする．
-        nn.utils.clip_grad_norm_(self.actor.parameters(), self.max_grad_norm)
+        nn.utils.clip_grad_norm_(self.parameters, self.max_grad_norm)
         self.optim_actor.step()

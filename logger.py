@@ -1,4 +1,5 @@
 from abc import ABCMeta, abstractmethod
+from tensorboardX import SummaryWriter
 
 
 class BaseLogger(metaclass=ABCMeta):
@@ -10,3 +11,8 @@ class BaseLogger(metaclass=ABCMeta):
 class DummyLogger(BaseLogger):
     def __init__(self):
         pass
+
+
+class TFLogger(BaseLogger):
+    def __init__(self):
+        self.writer = SummaryWriter()
